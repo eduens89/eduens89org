@@ -66,10 +66,11 @@
             
             const [isCustomCat, setIsCustomCat] = useState(false);
 
-            const categoriesPredefinies = [
+            // NOUVEAU : Remplacement de la liste fixe par un State (mémoire vive)
+            const [dynamicCategories, setDynamicCategories] = useState([
                 "Meubles salon", "Meubles chambre", "Meubles cuisine", "Meubles SDB", 
                 "Chaises", "Mobiliers enfant", "Décoration"
-            ];
+            ]);
 
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
@@ -147,7 +148,6 @@
                 };
 
                 try {
-                    // 👇👇👇 C'EST ICI QU'IL FAUT COLLER TON URL ! 👇👇👇
                     const scriptURL = "https://script.google.com/macros/s/AKfycbwv8ygZBVSv1BZ-Xn0ymoYfLkADkClhAnnlBttLp_xy2eoiBisDaV01uXJjl6sCNvIWhQ/exec";
 
                     const response = await fetch(scriptURL, {
@@ -159,8 +159,14 @@
 
                     if (result.status === "success") {
                         setStatus('success');
+
+                        // NOUVEAU : Si c'est une catégorie perso, on l'ajoute à la liste pour le prochain article !
+                        if (isCustomCat && formData.categorie && !dynamicCategories.includes(formData.categorie)) {
+                            setDynamicCategories(prev => [...prev, formData.categorie]);
+                        }
+
                         // On vide tout le formulaire
-                        setFormData({ titre: '', categorie: '', prix: '', dimensions: '', description: '', password: '' });
+                        setFormData({ titre: '', categorie: '', prix: '', dimensions: '', description: '', password: formData.password }); // Optionnel: garde le mot de passe pour la session si tu veux, sinon met ''
                         setImage(null);
                         setPreview(null);
                         setIsCustomCat(false);
@@ -222,7 +228,8 @@
                                     <label>Catégorie *</label>
                                     <select name="categorie_select" value={isCustomCat ? "AUTRE" : formData.categorie} onChange={handleInputChange} required>
                                         <option value="" disabled>Sélectionnez une catégorie</option>
-                                        {categoriesPredefinies.map((cat, idx) => (
+                                        {/* NOUVEAU : On utilise dynamicCategories ici */}
+                                        {dynamicCategories.map((cat, idx) => (
                                             <option key={idx} value={cat}>{cat}</option>
                                         ))}
                                         <option value="AUTRE" style={{fontWeight: 'bold', color: 'var(--green)'}}>➕ Créer une nouvelle catégorie...</option>
