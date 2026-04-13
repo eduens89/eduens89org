@@ -65,24 +65,28 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // --- NOUVEAUX LIENS GOOGLE ---
-        const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREXXW0wE12HS6P_2zK--2Rmmo9B6mTOjfecrdJHoR4xkwHYbtCqJCDvw0FbQMH7JrDNnF_-7msa_i7/pub?gid=0&single=true&output=csv";
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwv8ygZBVSv1BZ-Xn0ymoYfLkADkClhAnnlBttLp_xy2eoiBisDaV01uXJjl6sCNvIWhQ/exec";
+<script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    // --- NOUVEAUX LIENS GOOGLE (MODIFIÉS POUR FORCER L'ACTUALISATION) ---
+    // On crée un code unique basé sur l'heure (ex: 1712850000)
+    const rafraichissement = new Date().getTime();
 
-        // --- FONCTION DE LECTURE GOOGLE SHEETS ---
-        function getPhotoUrl(val) {
-            if (!val) return "https://placehold.co/400x300?text=Photo+à+venir";
-            val = val.trim().replace(/^"|"$/g, ""); 
-            if (val.startsWith("http") && !val.includes("drive.google.com")) return val;
-            if (val.includes("drive.google.com")) {
-                const parts = val.match(/\/d\/([^\/]+)/) || val.match(/id=([^&]+)/);
-                if (parts && parts[1]) return `https://drive.google.com/thumbnail?id=${parts[1]}&sz=w600`;
-            }
-            return `https://drive.google.com/thumbnail?id=${val}&sz=w600`;
+    // On ajoute ce code aux liens pour que le navigateur ne puisse pas utiliser le cache
+    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREXXW0wE12HS6P_2zK--2Rmmo9B6mTOjfecrdJHoR4xkwHYbtCqJCDvw0FbQMH7JrDNnF_-7msa_i7/pub?gid=0&single=true&output=csv" + "&t=" + rafraichissement;
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwv8ygZBVSv1BZ-Xn0ymoYfLkADkClhAnnlBttLp_xy2eoiBisDaV01uXJjl6sCNvIWhQ/exec" + "?t=" + rafraichissement;
+
+    // --- FONCTION DE LECTURE GOOGLE SHEETS ---
+    function getPhotoUrl(val) {
+        if (!val) return "https://placehold.co/400x300?text=Photo+à+venir";
+        val = val.trim().replace(/^"|"$/g, ""); 
+        if (val.startsWith("http") && !val.includes("drive.google.com")) return val;
+        if (val.includes("drive.google.com")) {
+            const parts = val.match(/\/d\/([^\/]+)/) || val.match(/id=([^&]+)/);
+            if (parts && parts[1]) return `https://drive.google.com/thumbnail?id=${parts[1]}&sz=w600`;
         }
+        return `https://drive.google.com/thumbnail?id=${val}&sz=w600`;
+    }
 
         function parseCSV(text) {
             const rows = [];
