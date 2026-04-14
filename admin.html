@@ -28,9 +28,15 @@
         .dropzone { grid-column: span 2; border: 2px dashed var(--muted); border-radius: 12px; padding: 40px 20px; text-align: center; background: #faf9f5; transition: 0.3s; cursor: pointer; position: relative; overflow: hidden; }
         .dropzone.active { border-color: var(--green); background: rgba(162, 200, 171, 0.1); }
         .dropzone:hover { border-color: var(--purple); }
-        .dropzone img { max-height: 250px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 2; position: relative; }
         .dropzone-content { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); }
         .dropzone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+
+        .image-preview-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; position: relative; z-index: 20; }
+        .image-preview-item { position: relative; width: 120px; height: 120px; border-radius: 8px; border: 2px solid var(--purple); overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .image-badge { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(33,13,65,0.8); color: white; font-size: 10px; padding: 4px; font-weight: bold; }
+        .image-badge.main { background: var(--green); color: var(--purple); }
+        .remove-btn { position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
         .input-group { display: flex; flex-direction: column; gap: 8px; }
         .input-group label { font-size: 13px; font-weight: 600; color: var(--purple); }
@@ -54,27 +60,23 @@
         const { useState } = React;
 
         function AdminForm() {
-            // Ajout du champ password
             const [formData, setFormData] = useState({
                 titre: '', categorie: '', prix: '', dimensions: '', description: '', password: ''
             });
-            const [image, setImage] = useState(null);
-            const [preview, setPreview] = useState(null);
+            const [images, setImages] = useState([]); 
             const [dragActive, setDragActive] = useState(false);
             const [status, setStatus] = useState('idle');
             const [errorMsg, setErrorMsg] = useState('Une erreur est survenue lors de l\'ajout.');
-            
             const [isCustomCat, setIsCustomCat] = useState(false);
-
-            // NOUVEAU : Remplacement de la liste fixe par un State (mémoire vive)
             const [dynamicCategories, setDynamicCategories] = useState([
                 "Meubles salon", "Meubles chambre", "Meubles cuisine", "Meubles SDB", 
                 "Chaises", "Mobiliers enfant", "Décoration"
             ]);
 
+            const MAX_IMAGES = 4;
+
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
-                
                 if (name === "categorie_select") {
                     if (value === "AUTRE") {
                         setIsCustomCat(true);
@@ -99,33 +101,54 @@
                 e.preventDefault();
                 e.stopPropagation();
                 setDragActive(false);
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    processFile(e.dataTransfer.files[0]);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    processFiles(e.dataTransfer.files);
                 }
             };
 
             const handleChangeFile = (e) => {
                 e.preventDefault();
-                if (e.target.files && e.target.files[0]) {
-                    processFile(e.target.files[0]);
+                if (e.target.files && e.target.files.length > 0) {
+                    processFiles(e.target.files);
                 }
             };
 
-            const processFile = (file) => {
-                if (!file.type.startsWith('image/')) {
-                    alert("Veuillez sélectionner une image !");
-                    return;
+            const processFiles = (files) => {
+                const fileArray = Array.from(files);
+                let currentCount = images.length;
+                let tooMany = false;
+
+                fileArray.forEach(file => {
+                    if (currentCount >= MAX_IMAGES) {
+                        tooMany = true;
+                        return;
+                    }
+                    if (!file.type.startsWith('image/')) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setImages(prev => {
+                            if (prev.length >= MAX_IMAGES) return prev;
+                            return [...prev, { file: file, preview: e.target.result, name: file.name }];
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                    currentCount++;
+                });
+
+                if (tooMany || (images.length + fileArray.length > MAX_IMAGES)) {
+                    alert(`Vous ne pouvez ajouter que ${MAX_IMAGES} photos maximum (1 principale + 3 optionnelles).`);
                 }
-                setImage(file);
-                const reader = new FileReader();
-                reader.onload = (e) => setPreview(e.target.result);
-                reader.readAsDataURL(file);
+            };
+
+            const removeImage = (indexToRemove) => {
+                setImages(images.filter((_, index) => index !== indexToRemove));
             };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                if (!preview) {
-                    alert("N'oubliez pas d'ajouter une photo !");
+                if (images.length === 0) {
+                    alert("N'oubliez pas d'ajouter au moins une photo !");
                     return;
                 }
                 if (!formData.password) {
@@ -135,10 +158,13 @@
                 
                 setStatus('loading');
 
-                // On intègre le mot de passe dans les données envoyées
+                const imagesPayload = images.map(img => ({
+                    imageContent: img.preview,
+                    imageName: img.name
+                }));
+
                 const payload = {
-                    imageContent: preview, 
-                    imageName: image.name,
+                    images: imagesPayload,
                     titre: formData.titre,
                     categorie: formData.categorie,
                     prix: formData.prix,
@@ -159,25 +185,18 @@
 
                     if (result.status === "success") {
                         setStatus('success');
-
-                        // NOUVEAU : Si c'est une catégorie perso, on l'ajoute à la liste pour le prochain article !
                         if (isCustomCat && formData.categorie && !dynamicCategories.includes(formData.categorie)) {
                             setDynamicCategories(prev => [...prev, formData.categorie]);
                         }
-
-                        // On vide tout le formulaire
-                        setFormData({ titre: '', categorie: '', prix: '', dimensions: '', description: '', password: formData.password }); // Optionnel: garde le mot de passe pour la session si tu veux, sinon met ''
-                        setImage(null);
-                        setPreview(null);
+                        setFormData({ titre: '', categorie: '', prix: '', dimensions: '', description: '', password: formData.password });
+                        setImages([]);
                         setIsCustomCat(false);
                         setTimeout(() => setStatus('idle'), 4000);
                     } else {
-                        console.error("Erreur serveur:", result);
                         setErrorMsg(result.message || "Une erreur est survenue.");
                         setStatus('error');
                     }
                 } catch (err) {
-                    console.error("Erreur réseau:", err);
                     setErrorMsg("Erreur réseau, impossible de joindre le serveur.");
                     setStatus('error');
                 }
@@ -200,12 +219,26 @@
                                 <div 
                                     className={`dropzone ${dragActive ? "active" : ""}`}
                                     onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+                                    style={{ padding: images.length > 0 ? '20px' : '40px 20px' }}
                                 >
-                                    <input type="file" accept="image/*" onChange={handleChangeFile} />
-                                    {preview ? (
+                                    <input type="file" accept="image/*" multiple onChange={handleChangeFile} />
+                                    
+                                    {images.length > 0 ? (
                                         <div>
-                                            <img src={preview} alt="Aperçu" />
-                                            <p style={{marginTop:'10px', fontSize:'13px'}}>Cliquez ou glissez une autre photo pour modifier</p>
+                                            <div className="image-preview-container">
+                                                {images.map((img, index) => (
+                                                    <div key={index} className="image-preview-item">
+                                                        <img src={img.preview} alt={`Aperçu ${index + 1}`} />
+                                                        <div className={`image-badge ${index === 0 ? 'main' : ''}`}>
+                                                            {index === 0 ? '⭐ PRINCIPALE' : `Option ${index}`}
+                                                        </div>
+                                                        <button type="button" className="remove-btn" onClick={(e) => { e.stopPropagation(); removeImage(index); }}>×</button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {images.length < MAX_IMAGES && (
+                                                <p style={{marginTop:'15px', fontSize:'13px', fontWeight: 'bold'}}>+ Cliquez ou glissez d'autres photos ({MAX_IMAGES - images.length} restantes)</p>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="dropzone-content">
@@ -214,7 +247,7 @@
                                                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                                                 <polyline points="21 15 16 10 5 21"></polyline>
                                             </svg>
-                                            <p><strong>Glissez votre vignette Canva ici</strong><br/>ou cliquez pour parcourir vos fichiers</p>
+                                            <p><strong>Glissez vos photos ici (Max 4)</strong><br/>ou cliquez pour parcourir vos fichiers</p>
                                         </div>
                                     )}
                                 </div>
@@ -228,7 +261,6 @@
                                     <label>Catégorie *</label>
                                     <select name="categorie_select" value={isCustomCat ? "AUTRE" : formData.categorie} onChange={handleInputChange} required>
                                         <option value="" disabled>Sélectionnez une catégorie</option>
-                                        {/* NOUVEAU : On utilise dynamicCategories ici */}
                                         {dynamicCategories.map((cat, idx) => (
                                             <option key={idx} value={cat}>{cat}</option>
                                         ))}
@@ -237,13 +269,8 @@
                                     
                                     {isCustomCat && (
                                         <input 
-                                            type="text" 
-                                            name="categorie" 
-                                            value={formData.categorie} 
-                                            onChange={handleInputChange} 
-                                            required 
-                                            placeholder="Tapez le nom de la catégorie" 
-                                            style={{marginTop: '8px', borderLeft: '4px solid var(--green)'}}
+                                            type="text" name="categorie" value={formData.categorie} onChange={handleInputChange} required 
+                                            placeholder="Tapez le nom de la catégorie" style={{marginTop: '8px', borderLeft: '4px solid var(--green)'}}
                                         />
                                     )}
                                 </div>
@@ -262,7 +289,6 @@
                                     <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Détails, état du meuble (ex: à rénover), petites anecdotes..."></textarea>
                                 </div>
 
-                                {/* --- CHAMP MOT DE PASSE --- */}
                                 <div className="input-group full-width" style={{ borderTop: '1px solid #ddd', paddingTop: '20px', marginTop: '10px' }}>
                                     <label style={{color: '#c62828'}}>Mot de passe Admin *</label>
                                     <input type="password" name="password" value={formData.password} onChange={handleInputChange} required placeholder="Mot de passe obligatoire pour valider" style={{borderColor: '#ffcdd2', background: '#fff5f5'}} />
