@@ -23,10 +23,16 @@
         :root { --purple: #210d41; --cream-dark: #f2ead3; --green: #a2c8ab; --muted: #7a6e88; }
         body { background: var(--cream-dark); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; color: var(--purple); }
         
-        header { background: var(--purple); color: #fdf9ee; padding: 0.6rem 2rem; position: sticky; top: 0; z-index: 10; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .logo-wrapper { display: flex; align-items: center; gap: 12px; }
+        /* MODIFIÉ : Le header gère maintenant l'espacement et le retour à la ligne sur mobile */
+        header { background: var(--purple); color: #fdf9ee; padding: 1rem 2rem; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 15px; }
+        
+        .logo-wrapper { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .logo-img { height: 90px; width: auto; }
-        .logo { font-family: Georgia, serif; font-size: 1.5rem; font-weight: bold; }
+        
+        /* NOUVEAU : Le style du texte intégré au centre */
+        .header-text { font-size: 13px; flex: 1 1 300px; display: flex; flex-direction: column; align-items: center; gap: 6px; line-height: 1.4; opacity: 0.92; text-align: center; }
+        .header-text strong { color: var(--green); font-size: 14px; }
+        .header-text .warning { color: #f5c842; font-size: 12px; }
         
         .nav-cats { background: var(--purple); overflow-x: auto; white-space: nowrap; padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; }
         .nav-cats button { background: none; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; cursor: pointer; border-radius: 20px; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 14px; }
@@ -48,13 +54,6 @@
         .hours-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
         .hours-list li { margin-bottom: 6px; display: flex; justify-content: space-between; }
         .day { font-weight: bold; color: var(--green); width: 80px; display: inline-block; }
-
-        .info-banner { background: var(--purple); color: #fdf9ee; padding: 10px 2rem 12px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); }
-        .info-banner-text { font-size: 13px; flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; line-height: 1.5; opacity: 0.92; text-align: center; }
-        .info-banner-text strong { width: 100%; text-align: center; }
-        .info-banner-text span { width: 100%; text-align: center; }
-        .info-banner-text strong { color: var(--green); font-size: 14px; }
-        .info-banner-warning { color: #f5c842; font-size: 12px; width: 100%; text-align: center; }
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(33,13,65,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
         .modal { background: white; border-radius: 24px; max-width: 550px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
@@ -88,16 +87,15 @@
         return `https://drive.google.com/thumbnail?id=${val}&sz=w800`;
     }
 
-    // --- NOUVEAU : Fonction pour générer le titre propre pour l'URL ---
     function generateSlug(text) {
         if (!text) return "";
         return text.toString().toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
-            .replace(/\s+/g, '-')           // Remplace les espaces par des tirets
-            .replace(/[^\w\-]+/g, '')       // Enlève la ponctuation
-            .replace(/\-\-+/g, '-')         // Evite les doubles tirets
-            .replace(/^-+/, '')             // Enlève tiret au début
-            .replace(/-+$/, '');            // Enlève tiret à la fin
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\-]+/g, '')
+            .replace(/\-\-+/g, '-')
+            .replace(/^-+/, '')
+            .replace(/-+$/, '');
     }
 
     function parseCSV(text) {
@@ -170,11 +168,10 @@
                     setItems(data.reverse()); 
                     setLoading(false); 
                     
-                    // --- MODIFIÉ : Récupère uniquement l'ID avant le tiret ---
                     const urlParams = new URLSearchParams(window.location.search);
                     const itemParam = urlParams.get('item');
                     if (itemParam) {
-                        const itemId = itemParam.split('-')[0]; // On garde que les chiffres avant le premier tiret
+                        const itemId = itemParam.split('-')[0];
                         const itemToOpen = data.find(i => i._row.toString() === itemId);
                         if (itemToOpen) {
                             setSelected(itemToOpen);
@@ -236,7 +233,6 @@
             setDeletingId(null);
         };
         
-        // --- MODIFIÉ : Ajout du titre (slug) dans l'URL ---
         const openModal = (item) => {
             setSelected(item);
             setActivePhotoIdx(0);
@@ -269,22 +265,22 @@
 
         return (
             <div>
+                {/* MODIFIÉ : Le texte est maintenant au milieu du header */}
                 <header>
                     <div className="logo-wrapper">
                         <img className="logo-img" src="logo.png" />
                     </div>
-                    <button onClick={handleAdminToggle} style={{background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', marginLeft: 'auto', zIndex: 100}}>
+                    
+                    <div className="header-text">
+                        <strong>Retrouvez notre catalogue de mobiliers et puériculture !</strong>
+                        <span>Si un élément vous intéresse, il suffit de nous le demander en caisse lors de votre passage à la boutique et nous irons vous le chercher dans notre stockage !</span>
+                        <span className="warning">⚠️ Nous ne prenons cependant aucune réservation en ligne, merci de votre compréhension. ⚠️</span>
+                    </div>
+
+                    <button onClick={handleAdminToggle} style={{background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', flexShrink: 0, zIndex: 100}}>
                         {adminPassword ? '🔓' : '🔒'}
                     </button>
                 </header>
-                
-                <div className="info-banner">
-                    <div className="info-banner-text">
-                        <strong>Retrouvez notre catalogue de mobiliers et puériculture !</strong>
-                        <span>Si un élément vous intéresse, il suffit de nous le demander en caisse lors de votre passage à la boutique et nous irons vous le chercher dans notre stockage !</span>
-                        <span className="info-banner-warning">⚠️ Nous ne prenons cependant aucune réservation en ligne (pour des questions logistiques et de temps), merci de votre compréhension. ⚠️</span>
-                    </div>
-                </div>
 
                 <div className="nav-cats">
                     {categories.map(c => {
